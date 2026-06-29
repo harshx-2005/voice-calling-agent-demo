@@ -113,4 +113,40 @@ router.post("/no-input", (req, res) => {
   res.send(twiml.toString());
 });
 
+// Trigger an outbound call to a specified number
+router.post("/outbound", async (req, res) => {
+  const { to, publicUrl } = req.body;
+  if (!to) {
+    return res.status(400).json({ error: "Phone number 'to' is required (e.g. +1234567890)" });
+  }
+
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    return res.status(500).json({ error: "Twilio credentials or phone number missing in .env" });
+  }
+
+  try {
+    const client = twilio(accountSid, authToken);
+    const host = req.headers.host;
+    const protocol = req.headers["x-forwarded-proto"] || "http";
+    const callbackUrl = publicUrl ? `${publicUrl}/call/incoming` : `${protocol}://${host}/call/incoming`;
+
+    const call = await client.calls.create({
+      url: callbackUrl,
+      to: to,
+      from: fromNumber,
+    });
+
+    console.log(`Outbound call initiated to ${to}. Call SID: ${call.sid}`);
+    res.json({ success: true, message: `Call initiated to ${to}`, callSid: call.sid, webhookUsed: callbackUrl });
+  } catch (error) {
+    console.error("Outbound call error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
+
