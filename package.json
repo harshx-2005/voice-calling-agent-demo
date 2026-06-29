@@ -1,0 +1,20 @@
+{
+  "name": "ai-receptionist",
+  "version": "1.0.0",
+  "description": "AI Voice Receptionist for AI Agency - Answers calls, books appointments, collects leads",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "groq-sdk": "^0.3.3",
+    "twilio": "^4.19.0",
+    "@deepgram/sdk": "^3.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
