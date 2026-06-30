@@ -22,7 +22,7 @@ async function getAIResponse(callSid, userMessage) {
 
   try {
     const response = await groq.chat.completions.create({
-      model: "llama3-8b-8192", // Free, fast model on Groq
+      model: "llama-3.1-8b-instant", // Free, fast model on Groq
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         ...convo.messages,
