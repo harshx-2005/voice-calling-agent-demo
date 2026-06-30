@@ -79,4 +79,86 @@ router.all("/respond", async (req, res) => {
   res.send(exoml);
 });
 
+// 3. Trigger an outbound call via Exotel's Calls Connect API
+router.post("/outbound", async (req, res) => {
+  const { to, appId } = req.body;
+  if (!to) {
+    return res.status(400).json({ error: "Phone number 'to' is required (e.g. +91XXXXXXXXXX)" });
+  }
+
+  const accountSid = process.env.EXOTEL_ACCOUNT_SID;
+  const apiKey = process.env.EXOTEL_API_KEY;
+  const apiToken = process.env.EXOTEL_API_TOKEN;
+  const callerId = process.env.EXOTEL_CALLER_ID;
+  const subdomain = process.env.EXOTEL_SUBDOMAIN || "api.exotel.com";
+  const finalAppId = appId || process.env.EXOTEL_APP_ID;
+
+  if (!accountSid || !apiKey || !apiToken || !callerId) {
+    return res.status(500).json({ error: "Exotel credentials or phone numbers missing in .env" });
+  }
+
+  if (!finalAppId) {
+    return res.status(400).json({ error: "Exotel App ID (appId) is required for outbound flow connection" });
+  }
+
+  // Construct Exotel's flow URL: http://my.exotel.com/{your_sid}/exoml/start_voice/{app_id}
+  const flowUrl = `http://my.exotel.com/${accountSid}/exoml/start_voice/${finalAppId}`;
+
+  // Basic auth header
+  const auth = Buffer.from(`${apiKey}:${apiToken}`).toString("base64");
+
+  // Call status callback url (points to our webhook)
+  const host = req.headers.host;
+  const protocol = req.headers["x-forwarded-proto"] || "http";
+  const statusCallbackUrl = `${protocol}://${host}/webhook/exotel-status`;
+
+  // Build the form-data request body parameters
+  const params = new URLSearchParams();
+  params.append("From", to);
+  params.append("CallerId", callerId);
+  params.append("Url", flowUrl);
+  params.append("CallType", "trans");
+  params.append("StatusCallback", statusCallbackUrl);
+
+  const exotelEndpoint = `https://${subdomain}/v1/Accounts/${accountSid}/Calls/connect.json`;
+
+  try {
+    console.log(`[Exotel] Initiating outbound call to ${to} connecting to flow app ${finalAppId}...`);
+    const response = await fetch(exotelEndpoint, {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${auth}`,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: params.toString()
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("[Exotel] API Error response:", data);
+      return res.status(response.status).json({
+        success: false,
+        error: data.RestResponse?.Errors?.[0]?.Message || "Exotel API connection failed",
+        details: data
+      });
+    }
+
+    const callDetails = data.RestResponse?.Call;
+    console.log(`[Exotel] Outbound call initiated. Call SID: ${callDetails?.Sid}`);
+    res.json({
+      success: true,
+      message: `Call initiated to ${to}`,
+      callSid: callDetails?.Sid,
+      status: callDetails?.Status,
+      flowUrl: flowUrl,
+      statusCallback: statusCallbackUrl
+    });
+  } catch (error) {
+    console.error("[Exotel] Outbound call error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
+

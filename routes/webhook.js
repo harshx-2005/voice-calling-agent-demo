@@ -25,6 +25,31 @@ router.post("/call-status", (req, res) => {
   res.sendStatus(200);
 });
 
+// Exotel calls this when a call ends
+router.post("/exotel-status", (req, res) => {
+  const callSid = req.body.CallSid || req.query.CallSid;
+  const status = req.body.Status || req.query.Status;
+  const from = req.body.From || req.query.From || "Unknown";
+  const duration = req.body.ConversationDuration || req.body.CallDuration || req.query.ConversationDuration || 0;
+
+  console.log(`[Exotel] Call ${callSid} ended. Status: ${status}, Duration: ${duration}s`);
+
+  if (status === "completed" || status === "no-answer" || status === "busy" || status === "failed") {
+    // Save lead data collected during the call
+    const leadData = getLeadData(callSid);
+
+    if (Object.keys(leadData).length > 0) {
+      saveLead(callSid, leadData, from);
+      console.log(`[Exotel] Lead saved from ${from}`);
+    }
+
+    // Clean up memory
+    clearConversation(callSid);
+  }
+
+  res.sendStatus(200);
+});
+
 // View all leads (simple API endpoint)
 router.get("/leads", (req, res) => {
   const { getAllLeads } = require("../services/leads");

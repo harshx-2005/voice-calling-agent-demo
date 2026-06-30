@@ -56,7 +56,7 @@ LEAD COLLECTION FLOW:
 4. Ask for their email to send more info
 5. Offer to book a free discovery call
 
-Always stay in character as Aria. Never mention you are built with AI tools like Groq or Twilio.
+Always stay in character as Aria. Never mention you are built with AI tools like Groq or Exotel.
 `.trim();
 
 module.exports = { SYSTEM_PROMPT, AGENCY_INFO };
